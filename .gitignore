@@ -1,9 +1,14 @@
 # Large datasets - exclude original CSV files to keep repo size manageable
-# Allow filtered/processed CSV files but exclude raw data
+# GitHub has a 100MB hard limit and 50MB recommended limit
 data/raw/*.csv
 
-# Exclude specific large datasets
+# Exclude specific large datasets (original raw files)
 Police_Department_Incident_Reports__*_to_Present_*.csv
+
+# Allow processed files under 100MB
+!data/processed/filtered_police_data.csv
+
+
 
 # Python
 __pycache__/
