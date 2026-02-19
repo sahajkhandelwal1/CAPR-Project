@@ -880,11 +880,14 @@ class SFPedestrianGraphConstructor:
         else:
             sample_nodes = self.nodes_gdf
             
-        sample_degrees = [degrees[idx] for idx in sample_nodes.index]
+        # Get degrees only for nodes that exist in both the graph and sample
+        valid_node_ids = set(degrees.keys()) & set(sample_nodes.index)
+        sample_nodes_valid = sample_nodes.loc[list(valid_node_ids)]
+        sample_degrees = [degrees[idx] for idx in sample_nodes_valid.index]
         
         # Use geometry coordinates
-        x_coords = [geom.x for geom in sample_nodes.geometry]
-        y_coords = [geom.y for geom in sample_nodes.geometry]
+        x_coords = [geom.x for geom in sample_nodes_valid.geometry]
+        y_coords = [geom.y for geom in sample_nodes_valid.geometry]
         
         scatter = ax3.scatter(x_coords, y_coords, c=sample_degrees, 
                              cmap='viridis', alpha=0.6, s=20)
@@ -1401,6 +1404,60 @@ class SFPedestrianGraphConstructor:
         
         print(f"         ✅ Saved: {output_path}")
     
+    def consolidate_intersections(self):
+        """Consolidate nearby nodes into single intersection nodes."""
+        print("\n🔗 Consolidating intersection nodes...")
+        
+        # This will merge nodes that are very close to each other (within tolerance)
+        tolerance = 5.0  # meters - nodes within 5m will be merged
+        
+        print(f"   📏 Using tolerance: {tolerance}m")
+        print(f"   📊 Before consolidation: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
+        
+        try:
+            # Use OSMnx's consolidate_intersections function
+            self.G_projected = ox.consolidate_intersections(
+                self.G_projected,
+                tolerance=tolerance,
+                rebuild_graph=True,
+                dead_ends=False,
+                reconnect_edges=True
+            )
+            
+            print(f"   📊 After consolidation: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
+            
+            # Also simplify the graph to remove unnecessary nodes
+            print("   🧹 Simplifying graph topology...")
+            nodes_before_simplify = len(self.G_projected.nodes)
+            edges_before_simplify = len(self.G_projected.edges)
+            
+            self.G_projected = ox.simplify_graph(
+                self.G_projected,
+                remove_rings=False
+            )
+            
+            print(f"   📊 After simplification: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
+            
+            # Update GeoDataFrames with consolidated graph
+            self.nodes_gdf, self.edges_gdf = ox.graph_to_gdfs(self.G_projected)
+            
+            # Calculate total reduction
+            original_nodes = self.metrics.get('num_nodes_before_consolidation', 0)
+            if original_nodes > 0:
+                total_reduction_pct = (original_nodes - len(self.G_projected.nodes)) / original_nodes * 100
+                print(f"   ✅ Total node reduction: {total_reduction_pct:.1f}% ({original_nodes:,} → {len(self.G_projected.nodes):,})")
+                
+                # Store the consolidation metrics
+                self.metrics['nodes_consolidated'] = original_nodes - len(self.G_projected.nodes)
+                self.metrics['consolidation_reduction_pct'] = total_reduction_pct
+            
+            return True
+            
+        except Exception as e:
+            print(f"   ⚠️  Warning: Consolidation failed: {e}")
+            print(f"   ➡️  Continuing with original graph structure")
+            return False
+    
     def construct_complete_graph(self, use_bbox=False):
         """Execute complete graph construction pipeline."""
         print("🚀 STARTING SAN FRANCISCO PEDESTRIAN GRAPH CONSTRUCTION")
@@ -1422,6 +1479,11 @@ class SFPedestrianGraphConstructor:
         # Step 3: Project to metric system
         if not self.project_to_metric_system():
             return False
+        
+        # Step 3.5: Consolidate intersection nodes
+        # Store node count before consolidation for metrics
+        self.metrics = {'num_nodes_before_consolidation': len(self.G_projected.nodes)}
+        self.consolidate_intersections()
         
         # Step 4: Validate structure
         if not self.validate_graph_structure():

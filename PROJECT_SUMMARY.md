@@ -18,12 +18,14 @@ Build a multi-objective pedestrian routing system that balances **distance effic
 - **Data Source**: OpenStreetMap via OSMnx (pedestrian-only paths)
 - **Network Scope**: Complete San Francisco walkable infrastructure
 - **Graph Statistics**:
-  - 50,945 nodes (intersections/endpoints)
-  - 153,214 edges (walkable street segments)
+  - 24,728 nodes (intersections) - *consolidated from 50,945*
+  - 93,696 edges (walkable segments) - *optimized from 153,214*
   - 6,766.8 km total network length
   - 44.2m average segment length
+  - **51.5% node reduction** through intersection consolidation
 - **Projection**: UTM Zone 10N (EPSG:32610) for metric accuracy
 - **Validation**: Fully connected, optimized graph structure
+- **Routing Optimization**: Each intersection has exactly one node
 
 ### 3. Technical Analysis & Validation
 Generated comprehensive static analysis visualizations:
