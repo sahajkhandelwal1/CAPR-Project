@@ -339,26 +339,34 @@ class SFPedestrianGraphConstructor:
         
         fig, ax = plt.subplots(1, 1, figsize=(12, 12), facecolor='white')
         
-        # Plot edges (thin gray lines)
+        # Plot edges (thin gray lines) - bottom layer
         self.edges_gdf.plot(
             ax=ax,
             color='gray',
             linewidth=0.5,
-            alpha=0.7
+            alpha=0.7,
+            zorder=1
         )
         
-        # Plot nodes (small points)
+        # Plot nodes (small points) - top layer for visibility
         self.nodes_gdf.plot(
             ax=ax,
             color='red',
-            markersize=0.8,
-            alpha=0.8
+            markersize=1.2,  # Slightly larger for better visibility
+            alpha=0.9,       # More opaque for better visibility
+            zorder=2         # On top of edges
         )
         
         # Formatting
+        consolidation_info = ""
+        if self.metrics.get('num_nodes_before_consolidation', 0) > 0:
+            original_nodes = self.metrics['num_nodes_before_consolidation']
+            reduction_pct = (original_nodes - self.metrics['num_nodes']) / original_nodes * 100
+            consolidation_info = f" (consolidated from {original_nodes:,}, {reduction_pct:.1f}% reduction)"
+        
         ax.set_title(
-            'San Francisco Pedestrian Network\n'
-            f'{self.metrics["num_nodes"]:,} nodes, {self.metrics["num_edges"]:,} edges, '
+            'San Francisco Pedestrian Network (Consolidated Intersections)\n'
+            f'{self.metrics["num_nodes"]:,} nodes{consolidation_info}, {self.metrics["num_edges"]:,} edges, '
             f'{self.metrics.get("total_length_km", 0):.1f} km total',
             fontsize=14,
             fontweight='bold'
@@ -412,15 +420,17 @@ class SFPedestrianGraphConstructor:
                 'shrink': 0.8, 
                 'label': f'Edge Length (meters)\n(Capped at 95th percentile: {p95:.0f}m)',
                 'orientation': 'vertical'
-            }
+            },
+            zorder=1  # Bottom layer
         )
         
-        # Plot nodes (smaller, subtle)
+        # Plot nodes (smaller, subtle) - on top for visibility
         self.nodes_gdf.plot(
             ax=ax,
             color='red',
-            markersize=0.3,
-            alpha=0.5
+            markersize=0.5,  # Slightly larger for better visibility
+            alpha=0.8,       # More opaque
+            zorder=2         # On top of edges
         )
         
         # Add statistics text box
@@ -442,7 +452,7 @@ class SFPedestrianGraphConstructor:
         
         # Formatting
         ax.set_title(
-            'Edge Length Distribution (Color-Coded)\n'
+            'Edge Length Distribution (Consolidated Network)\n'
             f'Showing {len(edges_plot):,} street segments with improved color scale',
             fontsize=14,
             fontweight='bold'
@@ -668,12 +678,13 @@ class SFPedestrianGraphConstructor:
             # Create visualization
             fig, ax = plt.subplots(1, 1, figsize=(12, 12), facecolor='white')
             
-            # Plot background network (faded)
+            # Plot background network (faded) - bottom layer
             self.edges_gdf.plot(
                 ax=ax,
                 color='lightgray',
                 linewidth=0.3,
-                alpha=0.5
+                alpha=0.5,
+                zorder=1
             )
             
             # Plot path edges
@@ -689,24 +700,27 @@ class SFPedestrianGraphConstructor:
                 if edge_mask.any():
                     path_edges.append(self.edges_gdf[edge_mask].iloc[0])
             
-            # Plot path
+            # Plot path - middle layer
             if path_edges:
                 path_gdf = gpd.GeoDataFrame(path_edges)
                 path_gdf.plot(
                     ax=ax,
                     color='red',
                     linewidth=3,
-                    alpha=0.9
+                    alpha=0.9,
+                    zorder=2
                 )
             
-            # Plot origin and destination
+            # Plot origin and destination - top layer for maximum visibility
             origin_point = Point(self.G_projected.nodes[origin]['x'], self.G_projected.nodes[origin]['y'])
             dest_point = Point(self.G_projected.nodes[destination]['x'], self.G_projected.nodes[destination]['y'])
             
-            # Origin (green)
-            ax.scatter(origin_point.x, origin_point.y, c='green', s=100, zorder=10, label='Origin')
-            # Destination (blue)
-            ax.scatter(dest_point.x, dest_point.y, c='blue', s=100, zorder=10, label='Destination')
+            # Origin (green) - larger and with border for visibility
+            ax.scatter(origin_point.x, origin_point.y, c='green', s=150, zorder=10, 
+                      label='Origin', edgecolors='darkgreen', linewidths=2)
+            # Destination (blue) - larger and with border for visibility
+            ax.scatter(dest_point.x, dest_point.y, c='blue', s=150, zorder=10, 
+                      label='Destination', edgecolors='darkblue', linewidths=2)
             
             # Formatting
             ax.set_title(
@@ -838,7 +852,7 @@ class SFPedestrianGraphConstructor:
         degree_counts = Counter(degree_values)
         
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
-        fig.suptitle('Network Degree Analysis', fontsize=16, fontweight='bold')
+        fig.suptitle('Network Degree Analysis (Consolidated Intersections)', fontsize=16, fontweight='bold')
         
         # Degree histogram
         degrees_sorted = sorted(degree_counts.keys())
@@ -890,7 +904,8 @@ class SFPedestrianGraphConstructor:
         y_coords = [geom.y for geom in sample_nodes_valid.geometry]
         
         scatter = ax3.scatter(x_coords, y_coords, c=sample_degrees, 
-                             cmap='viridis', alpha=0.6, s=20)
+                             cmap='viridis', alpha=0.8, s=35, zorder=2,
+                             edgecolors='black', linewidths=0.3)
         
         plt.colorbar(scatter, ax=ax3, label='Node Degree')
         ax3.set_xlabel('UTM Easting (m)', fontsize=12)
@@ -938,7 +953,7 @@ class SFPedestrianGraphConstructor:
         print("      📉 Creating network summary dashboard...")
         
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
-        fig.suptitle('San Francisco Pedestrian Network Dashboard', fontsize=18, fontweight='bold')
+        fig.suptitle('San Francisco Pedestrian Network Dashboard (Consolidated)', fontsize=18, fontweight='bold')
         
         # Bar chart of key metrics
         metrics = ['Nodes', 'Edges', 'Length (km)', 'Avg Degree', 'Density×10⁶']
@@ -999,10 +1014,14 @@ class SFPedestrianGraphConstructor:
         ax4.axis('off')
         
         # Create table data
+        original_nodes = self.metrics.get('num_nodes_before_consolidation', self.metrics['num_nodes'])
+        consolidation_pct = self.metrics.get('consolidation_reduction_pct', 0)
+        
         table_data = [
             ['Metric', 'Value', 'Interpretation'],
-            ['Total Nodes', f'{self.metrics["num_nodes"]:,}', 'Street intersections'],
+            ['Total Nodes', f'{self.metrics["num_nodes"]:,}', f'Intersections (was {original_nodes:,})'],
             ['Total Edges', f'{self.metrics["num_edges"]:,}', 'Street segments'],
+            ['Consolidation', f'{consolidation_pct:.1f}%', 'Node reduction achieved'],
             ['Network Length', f'{self.metrics["total_length_km"]:.1f} km', 'Total walkable distance'],
             ['Average Edge', f'{self.metrics["avg_edge_length_m"]:.1f} m', 'Typical block length'],
             ['Connectivity', f'{self.metrics["avg_degree"]:.1f}', 'Streets per intersection'],
@@ -1405,36 +1424,44 @@ class SFPedestrianGraphConstructor:
         print(f"         ✅ Saved: {output_path}")
     
     def consolidate_intersections(self):
-        """Consolidate nearby nodes into single intersection nodes."""
-        print("\n🔗 Consolidating intersection nodes...")
+        """Consolidate overlapping and nearby nodes into single intersection nodes."""
+        print("\n🔗 Consolidating intersection nodes for routing accuracy...")
         
-        # This will merge nodes that are very close to each other (within tolerance)
-        tolerance = 5.0  # meters - nodes within 5m will be merged
-        
-        print(f"   📏 Using tolerance: {tolerance}m")
         print(f"   📊 Before consolidation: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
         
         try:
-            # Use OSMnx's consolidate_intersections function
+            # Step 1: First merge nodes that are at exactly the same coordinates (overlapping nodes)
+            print("   🎯 Phase 1: Merging overlapping nodes at identical coordinates...")
+            self._merge_overlapping_nodes()
+            print(f"   📊 After overlapping merge: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
+            
+            # Step 2: Apply distance-based consolidation for nearby intersections
+            tolerance = 15.0  # meters - aggressive merging for real intersections
+            print(f"   📏 Phase 2: Distance-based consolidation (tolerance: {tolerance}m)")
+            
             self.G_projected = ox.consolidate_intersections(
                 self.G_projected,
                 tolerance=tolerance,
                 rebuild_graph=True,
-                dead_ends=False,
+                dead_ends=False,  # Don't consolidate dead ends
                 reconnect_edges=True
             )
             
-            print(f"   📊 After consolidation: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
+            print(f"   📊 After distance consolidation: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
             
-            # Also simplify the graph to remove unnecessary nodes
-            print("   🧹 Simplifying graph topology...")
-            nodes_before_simplify = len(self.G_projected.nodes)
-            edges_before_simplify = len(self.G_projected.edges)
+            # Step 3: Simplify the graph to remove unnecessary intermediate nodes
+            print("   🧹 Phase 3: Topology simplification...")
             
-            self.G_projected = ox.simplify_graph(
-                self.G_projected,
-                remove_rings=False
-            )
+            try:
+                # Simplify the graph to remove degree-2 nodes that are just path continuations
+                self.G_projected = ox.simplify_graph(
+                    self.G_projected,
+                    remove_rings=False  # Keep ring roads
+                )
+                print(f"   📊 After simplification: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
+            except Exception as e:
+                print(f"   ⚠️  Warning: Simplification failed: {e}")
+                print("   ➡️  Continuing with current graph structure")
             
             print(f"   📊 After simplification: {len(self.G_projected.nodes)} nodes, {len(self.G_projected.edges)} edges")
             
@@ -1445,18 +1472,240 @@ class SFPedestrianGraphConstructor:
             original_nodes = self.metrics.get('num_nodes_before_consolidation', 0)
             if original_nodes > 0:
                 total_reduction_pct = (original_nodes - len(self.G_projected.nodes)) / original_nodes * 100
-                print(f"   ✅ Total node reduction: {total_reduction_pct:.1f}% ({original_nodes:,} → {len(self.G_projected.nodes):,})")
+                print(f"   ✅ MULTI-PHASE CONSOLIDATION COMPLETE:")
+                print(f"      📉 Total node reduction: {total_reduction_pct:.1f}%")
+                print(f"      📊 {original_nodes:,} → {len(self.G_projected.nodes):,} nodes")
+                print(f"      🎯 Overlapping nodes merged + intersection consolidation")
+                
+                # Step 4: Validate that consolidation was successful
+                print("   🔎 Phase 4: Post-consolidation validation...")
+                self._validate_no_overlapping_nodes()
                 
                 # Store the consolidation metrics
                 self.metrics['nodes_consolidated'] = original_nodes - len(self.G_projected.nodes)
                 self.metrics['consolidation_reduction_pct'] = total_reduction_pct
             
             return True
-            
         except Exception as e:
-            print(f"   ⚠️  Warning: Consolidation failed: {e}")
-            print(f"   ➡️  Continuing with original graph structure")
+            print(f"   ❌ Error during consolidation: {e}")
+            import traceback
+            print(traceback.format_exc())
             return False
+    
+    def _validate_no_overlapping_nodes(self):
+        """Validate that no overlapping nodes remain after consolidation."""
+        import math
+        
+        nodes = list(self.G_projected.nodes(data=True))
+        if len(nodes) < 2:
+            print("      ✅ Graph has less than 2 nodes, no overlaps possible")
+            return
+        
+        overlap_threshold = 1.0  # Very strict 1 meter threshold for validation
+        overlapping_pairs = []
+        
+        # Build positions
+        positions = [(node_id, node_data['x'], node_data['y']) for node_id, node_data in nodes]
+        
+        # Check all pairs for overlaps
+        for i in range(len(positions)):
+            for j in range(i + 1, len(positions)):
+                node1_id, x1, y1 = positions[i]
+                node2_id, x2, y2 = positions[j]
+                
+                distance = math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+                if distance <= overlap_threshold:
+                    overlapping_pairs.append((node1_id, node2_id, distance))
+        
+        if overlapping_pairs:
+            print(f"      ⚠️  WARNING: Found {len(overlapping_pairs)} remaining overlapping node pairs (within {overlap_threshold}m):")
+            for node1, node2, dist in overlapping_pairs[:5]:  # Show first 5
+                print(f"         • Nodes {node1} ↔ {node2}: {dist:.3f}m apart")
+            if len(overlapping_pairs) > 5:
+                print(f"         ... and {len(overlapping_pairs) - 5} more pairs")
+            return False
+        else:
+            print(f"      ✅ Validation passed: No overlapping nodes found (within {overlap_threshold}m)")
+            return True
+    
+    def _merge_overlapping_nodes(self):
+        """Merge nodes that are at the same location (overlapping/very close nodes on two-way streets)."""
+        import math
+        
+        # Get node coordinates
+        nodes = list(self.G_projected.nodes(data=True))
+        
+        if len(nodes) < 2:
+            print("      ℹ️  Less than 2 nodes, skipping overlap check")
+            return
+        
+        # Improved spatial clustering using union-find for connected components
+        overlap_threshold = 2.0  # 2 meters - very strict for truly overlapping nodes
+        
+        # Build node positions dictionary
+        node_positions = {}
+        node_list = []
+        
+        for node_id, node_data in nodes:
+            x, y = node_data['x'], node_data['y']
+            node_positions[node_id] = (x, y)
+            node_list.append(node_id)
+        
+        # Build spatial grid for efficient neighbor finding
+        grid_size = overlap_threshold  # Grid cells are the size of overlap threshold
+        grid = {}
+        
+        for node_id in node_list:
+            x, y = node_positions[node_id]
+            
+            # Assign to grid cell
+            grid_x = int(x // grid_size)
+            grid_y = int(y // grid_size)
+            
+            if grid_x not in grid:
+                grid[grid_x] = {}
+            if grid_y not in grid[grid_x]:
+                grid[grid_x][grid_y] = []
+            
+            grid[grid_x][grid_y].append(node_id)
+        
+        # Find all overlapping pairs using Union-Find
+        parent = {node_id: node_id for node_id in node_list}
+        
+        def find(x):
+            if parent[x] != x:
+                parent[x] = find(parent[x])
+            return parent[x]
+        
+        def union(x, y):
+            px, py = find(x), find(y)
+            if px != py:
+                parent[px] = py
+        
+        # Check each node against neighboring grid cells
+        overlapping_pairs = 0
+        for grid_x in grid:
+            for grid_y in grid[grid_x]:
+                cell_nodes = grid[grid_x][grid_y]
+                
+                # Check all pairs within this cell and adjacent cells
+                for dx in [-1, 0, 1]:
+                    for dy in [-1, 0, 1]:
+                        neighbor_x, neighbor_y = grid_x + dx, grid_y + dy
+                        
+                        if neighbor_x in grid and neighbor_y in grid[neighbor_x]:
+                            neighbor_nodes = grid[neighbor_x][neighbor_y]
+                            
+                            # Check distances between all pairs
+                            for node1 in cell_nodes:
+                                for node2 in neighbor_nodes:
+                                    if node1 >= node2:  # Avoid duplicate checks
+                                        continue
+                                    
+                                    x1, y1 = node_positions[node1]
+                                    x2, y2 = node_positions[node2]
+                                    distance = math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+                                    
+                                    if distance <= overlap_threshold:
+                                        union(node1, node2)
+                                        overlapping_pairs += 1
+        
+        # Group nodes by their root parent to form clusters
+        clusters = {}
+        for node_id in node_list:
+            root = find(node_id)
+            if root not in clusters:
+                clusters[root] = []
+            clusters[root].append(node_id)
+        
+        # Filter to only clusters with multiple nodes
+        overlapping_clusters = [cluster for cluster in clusters.values() if len(cluster) > 1]
+        
+        if not overlapping_clusters:
+            print("      ℹ️  No overlapping nodes found (within 2m)")
+            return
+        
+        total_overlapping = sum(len(cluster) for cluster in overlapping_clusters)
+        print(f"      🔍 Found {len(overlapping_clusters)} overlap clusters with {total_overlapping} overlapping nodes (within {overlap_threshold}m)")
+        print(f"      🔗 Detected {overlapping_pairs} overlapping pairs")
+        
+        # Merge overlapping nodes
+        nodes_to_remove = set()
+        
+        for cluster_nodes in overlapping_clusters:
+            if len(cluster_nodes) <= 1:
+                continue
+                
+            # Keep the first node as the master, merge others into it
+            master_node = cluster_nodes[0]
+            nodes_to_merge = cluster_nodes[1:]
+            
+            # Collect all edges from nodes to be merged
+            edges_to_redirect = []
+            
+            for merge_node in nodes_to_merge:
+                # Get all edges incident to this node
+                for neighbor in list(self.G_projected.neighbors(merge_node)):
+                    # Store edge data before removing
+                    if self.G_projected.has_edge(merge_node, neighbor):
+                        edge_data = self.G_projected.get_edge_data(merge_node, neighbor)
+                        edges_to_redirect.append((merge_node, neighbor, edge_data))
+                
+                # Also get incoming edges for directed graphs
+                for predecessor in list(self.G_projected.predecessors(merge_node)):
+                    if predecessor != merge_node:  # Avoid self-loops we already handled
+                        if self.G_projected.has_edge(predecessor, merge_node):
+                            edge_data = self.G_projected.get_edge_data(predecessor, merge_node)
+                            edges_to_redirect.append((predecessor, merge_node, edge_data))
+                
+                # Mark node for removal
+                nodes_to_remove.add(merge_node)
+            
+            # Redirect edges to master node
+            for source, target, edge_data in edges_to_redirect:
+                if source in nodes_to_merge:
+                    # Edge starts from a node being merged
+                    new_source = master_node
+                    new_target = target
+                elif target in nodes_to_merge:
+                    # Edge ends at a node being merged
+                    new_source = source
+                    new_target = master_node
+                else:
+                    continue  # Skip if neither end needs merging
+                
+                # Avoid self-loops and duplicate edges
+                if (new_source != new_target and 
+                    not self.G_projected.has_edge(new_source, new_target)):
+                    
+                    # Add the redirected edge - handle different edge data formats
+                    try:
+                        if isinstance(edge_data, dict):
+                            # Single edge - filter out non-string keys for add_edge
+                            filtered_data = {}
+                            for k, v in edge_data.items():
+                                if isinstance(k, str):
+                                    filtered_data[k] = v
+                            self.G_projected.add_edge(new_source, new_target, **filtered_data)
+                        else:
+                            # MultiGraph with multiple edges
+                            for key, data in edge_data.items():
+                                filtered_data = {}
+                                if isinstance(data, dict):
+                                    for k, v in data.items():
+                                        if isinstance(k, str):
+                                            filtered_data[k] = v
+                                self.G_projected.add_edge(new_source, new_target, **filtered_data)
+                    except Exception as e:
+                        # If edge addition fails, just create a basic edge
+                        if not self.G_projected.has_edge(new_source, new_target):
+                            self.G_projected.add_edge(new_source, new_target)
+        
+        # Remove the merged nodes
+        self.G_projected.remove_nodes_from(nodes_to_remove)
+        
+        nodes_merged = len(nodes_to_remove)
+        print(f"      ✅ Merged {nodes_merged} overlapping nodes into {len(overlapping_clusters)} intersection points")
     
     def construct_complete_graph(self, use_bbox=False):
         """Execute complete graph construction pipeline."""
@@ -1498,12 +1747,19 @@ class SFPedestrianGraphConstructor:
         
         print("\n" + "=" * 60)
         print("✅ PEDESTRIAN GRAPH CONSTRUCTION COMPLETE")
-        print(f"📊 Final graph ready for routing engine:")
-        print(f"   • {self.metrics['num_nodes']:,} intersection nodes")
+        print(f"📊 Final consolidated graph ready for routing engine:")
+        
+        # Get consolidation info
+        original_nodes = self.metrics.get('num_nodes_before_consolidation', 0)
+        reduction_pct = self.metrics.get('consolidation_reduction_pct', 0)
+        consolidation_info = f" (consolidated from {original_nodes:,}, {reduction_pct:.1f}% reduction)" if original_nodes > 0 else ""
+        
+        print(f"   • {self.metrics['num_nodes']:,} intersection nodes{consolidation_info}")
         print(f"   • {self.metrics['num_edges']:,} walkable street edges")
         print(f"   • {self.metrics.get('total_length_km', 0):.1f} km total network length")
         print(f"   • Projected to metric coordinates (UTM)")
         print(f"   • Average edge length: {self.metrics.get('avg_edge_length_m', 0):.1f}m")
+        print(f"   • 🎯 One node per intersection for accurate routing")
         print(f"📁 Data saved to: {self.output_dir}")
         
         return True
