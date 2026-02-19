@@ -1,0 +1,9 @@
+San Francisco Pedestrian Network Statistics
+=============================================
+
+num_nodes: 50945
+num_edges: 153214
+highway_types: ['footway', 'residential', 'pedestrian', 'unclassified', 'primary', 'tertiary', 'service', 'track', 'secondary', 'secondary_link', 'steps', 'tertiary_link', 'path', 'primary_link', 'trunk_link', 'busway', 'trunk', 'living_street', 'residential_link', 'corridor', 'bridleway', 'elevator', 'bus_stop']
+total_length_km: 6766.845867058182
+avg_edge_length_m: 44.16597613180377
+projection: EPSG:32610

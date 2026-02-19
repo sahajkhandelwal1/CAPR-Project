@@ -1,0 +1,17 @@
+{
+  "num_nodes": 50945,
+  "num_edges": 153214,
+  "is_directed": true,
+  "is_connected": true,
+  "extracted_largest": false,
+  "total_length_km": 6766.845867058182,
+  "avg_edge_length_m": 44.16597613180377,
+  "median_edge_length_m": 19.33958352587503,
+  "min_edge_length_m": 0.08503820045167129,
+  "max_edge_length_m": 1215.1494023671307,
+  "std_edge_length_m": 56.85179297685181,
+  "network_density": 5.90342218009273e-05,
+  "avg_degree": 6.0148787908528805,
+  "max_degree": 16,
+  "min_degree": 2
+}
