@@ -51,9 +51,10 @@ def score_column_values(df, column):
         print(f"{i:3d}. {val}")
     
     print("\nEnter scores for each value.")
-    print("Format: value_index:score (e.g., 1:10, 2:5, 3:8)")
+    print("Score Range: 1-100 (1 = safest/lowest risk, 100 = most dangerous/highest risk)")
+    print("Format: value_index:score (e.g., 1:10, 2:75, 3:95)")
     print("Or enter 'skip' to skip this column, or 'auto' to score all at once.")
-    print("For 'auto', enter a single score that will apply to all values.")
+    print("For 'auto', enter a single score (1-100) that will apply to all values.")
     
     while True:
         user_input = input("\n> ").strip().lower()
@@ -63,12 +64,15 @@ def score_column_values(df, column):
         
         if user_input == 'auto':
             try:
-                score = float(input("Enter score to apply to all values: "))
+                score = float(input("Enter score to apply to all values (1-100): "))
+                if not (1 <= score <= 100):
+                    print("❌ Score must be between 1 and 100. Please try again.")
+                    continue
                 value_scores = {val: score for val in unique_vals}
                 print(f"✓ Applied score {score} to all {len(unique_vals)} values")
                 break
             except ValueError:
-                print("Invalid score. Please enter a number.")
+                print("❌ Invalid score. Please enter a number between 1 and 100.")
                 continue
         
         # Parse individual scores
@@ -86,10 +90,13 @@ def score_column_values(df, column):
                 
                 if 0 <= idx < len(unique_vals):
                     val = unique_vals[idx]
+                    if not (1 <= score <= 100):
+                        print(f"❌ Score {score} for '{val}' must be between 1 and 100. Skipping.")
+                        continue
                     value_scores[val] = score
                     print(f"✓ {val}: {score}")
                 else:
-                    print(f"Invalid index: {idx + 1}. Must be between 1 and {len(unique_vals)}")
+                    print(f"❌ Invalid index: {idx + 1}. Must be between 1 and {len(unique_vals)}")
             
             if value_scores:
                 # Check if all values are scored
@@ -101,7 +108,7 @@ def score_column_values(df, column):
                         continue
                 break
         except ValueError as e:
-            print(f"Invalid input: {e}. Please try again.")
+            print(f"❌ Invalid input: {e}. Please enter numbers in format 'index:score' where score is 1-100.")
     
     return value_scores
 
@@ -157,7 +164,7 @@ def get_column_weights(columns):
                     print(f"\n✓ Weights normalized (total: {sum(weights.values()):.4f})")
                 break
         except ValueError as e:
-            print(f"Invalid input: {e}. Please try again.")
+            print(f"❌ Invalid input: {e}. Please enter numbers in format 'index:weight' (e.g., 1:0.5, 2:1.0).")
     
     return weights
 
@@ -200,7 +207,7 @@ def calculate_scores(df, column_scores, column_weights):
     result_df['Score'] = row_scores
     
     print(f"✓ Calculated scores for {len(row_scores):,} rows")
-    print(f"  Score range: {min(row_scores):.2f} - {max(row_scores):.2f}")
+    print(f"  Score range: {min(row_scores):.2f} - {max(row_scores):.2f} (1=safest, 100=most dangerous)")
     print(f"  Average score: {sum(row_scores) / len(row_scores):.2f}")
     
     return result_df
@@ -291,7 +298,7 @@ def score_csv(input_file, output_file):
         
         # Display summary statistics
         print("\n" + "-"*60)
-        print("Score Summary Statistics:")
+        print("Score Summary Statistics (1=safest, 100=most dangerous):")
         print("-"*60)
         print(f"  Minimum Score: {result_df['Score'].min():.4f}")
         print(f"  Maximum Score: {result_df['Score'].max():.4f}")
