@@ -1,7 +1,8 @@
 """
-Run 50 random routes with beta=0, 0.5, and 1, then plot distance vs risk.
+Run random routes with beta=0, 0.5, and 1, then plot distance vs risk.
 
-Uses the same graph and edge scores as run_safety_routing.py.
+Prompts for: risk type (average/total), line of best fit, cluster highlighting,
+and number of routes. Uses the same graph and edge scores as run_safety_routing.py.
 """
 
 import random
@@ -20,7 +21,34 @@ from algorithms.run_safety_routing import (
 )
 
 
+def _prompt_choice(prompt: str, default: str = "") -> str:
+    """Return trimmed user input or default if empty."""
+    s = input(prompt).strip().lower() if sys.stdin.isatty() else default
+    return s or default
+
+
+def get_plot_options():
+    """Ask user for risk type, line of best fit, cluster highlighting, and n_routes."""
+    print("\n--- Plot options ---")
+    risk = _prompt_choice("Risk score: (a)verage or (t)otal? [a/t] (default: a): ", "a")
+    use_average_risk = risk != "t"
+    line_input = _prompt_choice("Show line of best fit? [y/n] (default: n): ", "n")
+    show_line = line_input in ("y", "yes")
+    cluster_input = _prompt_choice("Show cluster highlighting (convex hulls)? [y/n] (default: y): ", "y")
+    show_cluster = cluster_input in ("y", "yes")
+    n_input = _prompt_choice("Number of routes to test? (default: 50): ", "50")
+    try:
+        n_routes = max(1, int(n_input))
+    except ValueError:
+        n_routes = 50
+    return use_average_risk, show_line, show_cluster, n_routes
+
+
 def main():
+    use_average_risk, show_line, show_cluster, n_routes = get_plot_options()
+    risk_key = "average_risk_score" if use_average_risk else "total_risk_score"
+    risk_label = "Average risk score (per edge)" if use_average_risk else "Total risk score"
+
     project_root = Path(__file__).resolve().parent.parent
     graph_path = project_root / "data/graphs/sf_pedestrian_graph_enhanced.graphml"
     if not graph_path.exists():
@@ -52,8 +80,7 @@ def main():
         sys.exit(1)
 
     betas = [0.0, 0.5, 1.0]
-    n_routes = 50
-    results = []  # list of {beta, total_distance_m, average_risk_score, run_id}
+    results = []  # list of {beta, total_distance_m, average_risk_score, total_risk_score, run_id}
 
     random.seed(42)
     for run_id in range(n_routes):
@@ -67,6 +94,7 @@ def main():
                     "beta": beta,
                     "total_distance_m": r["total_distance_m"],
                     "average_risk_score": avg_risk,
+                    "total_risk_score": r["total_risk_score"],
                     "run_id": run_id,
                 })
 
@@ -88,34 +116,39 @@ def main():
     colors = {0.0: "#2ecc71", 0.5: "#3498db", 1.0: "#e74c3c"}
     labels = {0.0: "β=0 (safest)", 0.5: "β=0.5 (balanced)", 1.0: "β=1 (shortest)"}
 
-    # Draw cluster hulls first (behind points)
-    for beta in betas:
-        subset = [x for x in results if x["beta"] == beta]
-        if len(subset) < 3:
-            continue
-        pts = np.column_stack([
-            [x["total_distance_m"] for x in subset],
-            [x["average_risk_score"] for x in subset],
-        ])
-        try:
-            hull = ConvexHull(pts)
-            poly = Polygon(pts[hull.vertices], facecolor=colors[beta], edgecolor=colors[beta], alpha=0.2, linewidth=1.5)
-            ax.add_patch(poly)
-        except Exception:
-            pass
+    # Draw cluster hulls first (behind points), if requested
+    if show_cluster:
+        for beta in betas:
+            subset = [x for x in results if x["beta"] == beta]
+            if len(subset) < 3:
+                continue
+            pts = np.column_stack([
+                [x["total_distance_m"] for x in subset],
+                [x[risk_key] for x in subset],
+            ])
+            try:
+                hull = ConvexHull(pts)
+                poly = Polygon(pts[hull.vertices], facecolor=colors[beta], edgecolor=colors[beta], alpha=0.2, linewidth=1.5)
+                ax.add_patch(poly)
+            except Exception:
+                pass
 
-    # Then scatter points on top
+    # Scatter points (and optionally line of best fit) per beta
     for beta in betas:
         subset = [x for x in results if x["beta"] == beta]
         if not subset:
             continue
         dist = np.array([x["total_distance_m"] for x in subset])
-        risk = np.array([x["average_risk_score"] for x in subset])
+        risk = np.array([x[risk_key] for x in subset])
         ax.scatter(dist, risk, c=colors[beta], label=labels[beta], alpha=0.7, s=40, zorder=2)
+        if show_line and len(dist) > 1:
+            coefs = np.polyfit(dist, risk, 1)
+            x_line = np.linspace(dist.min(), dist.max(), 100)
+            ax.plot(x_line, np.polyval(coefs, x_line), c=colors[beta], linestyle="--", linewidth=2)
 
     ax.set_xlabel("Total distance (m)")
-    ax.set_ylabel("Average risk score (per edge)")
-    ax.set_title("50 random routes: distance vs average risk by β")
+    ax.set_ylabel(risk_label)
+    ax.set_title(f"{n_routes} random routes: distance vs risk by β")
     ax.legend()
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
