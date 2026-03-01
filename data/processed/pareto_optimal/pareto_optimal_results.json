@@ -1,0 +1,61 @@
+{
+  "optimal_betas": [
+    0.01,
+    0.05,
+    0.1,
+    0.15,
+    0.2,
+    0.3
+  ],
+  "summary_table": [
+    {
+      "beta": 0.01,
+      "avg_risk_reduction": 32.022580637123504,
+      "avg_distance_increase": 41.457177171985016,
+      "std_risk_reduction": 25.13363751468888,
+      "std_distance_increase": 80.899716360661,
+      "success_rate": 70.0
+    },
+    {
+      "beta": 0.05,
+      "avg_risk_reduction": 32.00951314334346,
+      "avg_distance_increase": 35.988576144603705,
+      "std_risk_reduction": 25.144902759713656,
+      "std_distance_increase": 65.61051374830356,
+      "success_rate": 70.0
+    },
+    {
+      "beta": 0.1,
+      "avg_risk_reduction": 32.00918904085641,
+      "avg_distance_increase": 35.77987180773327,
+      "std_risk_reduction": 25.14467126738086,
+      "std_distance_increase": 65.55808982223728,
+      "success_rate": 70.0
+    },
+    {
+      "beta": 0.15,
+      "avg_risk_reduction": 32.0052894824996,
+      "avg_distance_increase": 33.13950537358925,
+      "std_risk_reduction": 25.13997680153864,
+      "std_distance_increase": 60.43998087218451,
+      "success_rate": 70.0
+    },
+    {
+      "beta": 0.2,
+      "avg_risk_reduction": 32.0052894824996,
+      "avg_distance_increase": 33.13950537358925,
+      "std_risk_reduction": 25.13997680153864,
+      "std_distance_increase": 60.43998087218451,
+      "success_rate": 70.0
+    },
+    {
+      "beta": 0.3,
+      "avg_risk_reduction": 31.903682861433186,
+      "avg_distance_increase": 22.82537575346204,
+      "std_risk_reduction": 25.15030380180607,
+      "std_distance_increase": 24.103453288492204,
+      "success_rate": 70.0
+    }
+  ],
+  "total_trials": 150
+}

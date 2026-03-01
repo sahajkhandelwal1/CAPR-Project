@@ -1,0 +1,38 @@
+
+CAPR ROUTING RECOMMENDATIONS
+============================
+
+Based on experimental analysis of 150 trials:
+
+1. GENERAL USE (β = 0.5):
+   • Best overall balance of safety and efficiency
+   • 64% success rate for optimal trade-offs
+   • Average 20% risk reduction with 7% distance increase
+   • Recommended for daily pedestrian navigation
+
+2. HIGH-RISK AREAS (β = 0.0 to 0.3):
+   • Maximize safety in dangerous neighborhoods
+   • Accept 30-50% distance increases for 30%+ risk reduction
+   • Use at night or in areas with recent crime activity
+   • Particularly effective when safety is paramount
+
+3. TIME-SENSITIVE TRAVEL (β = 0.7 to 1.0):
+   • Minimize travel time while maintaining some safety awareness
+   • Use during daylight hours in familiar areas
+   • Still provides 10-15% risk reduction vs pure shortest path
+   • Balance urgency with reasonable safety measures
+
+4. ADAPTIVE STRATEGIES:
+   • Time of day: Lower β values (safer routes) at night
+   • Weather: Adjust β based on visibility conditions
+   • User profile: Allow personal safety preference settings
+   • Real-time: Incorporate current crime alerts and incidents
+
+IMPLEMENTATION GUIDELINES:
+• Default to β = 0.5 for new users
+• Provide user controls for safety preference adjustment
+• Display trade-off information (time vs safety) to users
+• Consider contextual factors in β selection
+
+The experimental evidence strongly supports CAPR deployment 
+with balanced routing as the primary configuration.

@@ -91,171 +91,74 @@ def create_sf_risk_map():
     print(f"Final dataset: {len(edges_gdf)} edges")
     print(f"Risk score range: [{edges_gdf['final_risk'].min():.1f}, {edges_gdf['final_risk'].max():.1f}]")
     
-    # Create the visualization
-    fig, axes = plt.subplots(2, 2, figsize=(20, 16))
-    fig.suptitle('San Francisco Street Network Crime Risk Analysis', fontsize=20, fontweight='bold')
+    # Create the visualization - single panel only
+    fig, ax = plt.subplots(1, 1, figsize=(14, 10))
     
     # Define color schemes
     risk_colors = ['#2E8B57', '#90EE90', '#FFFF00', '#FFA500', '#FF4500', '#8B0000']  # Green to Red
     risk_cmap = mcolors.LinearSegmentedColormap.from_list('risk', risk_colors, N=256)
     
-    # 1. Overall Risk Map
-    ax1 = axes[0, 0]
-    edges_gdf.plot(
-        column='final_risk',
-        cmap=risk_cmap,
-        linewidth=0.5,
-        ax=ax1,
-        legend=True,
-        legend_kwds={
-            'label': 'Risk Score (1-100)',
-            'orientation': 'horizontal',
-            'shrink': 0.8,
-            'pad': 0.05
-        }
+    # Create subtle but noticeable line widths based on risk level
+    edges_gdf['line_width'] = edges_gdf['final_risk'].apply(
+        lambda x: 1.2 if x >= 80 else    # Very high risk - slightly thick lines
+                  0.9 if x >= 60 else    # High risk - medium lines  
+                  0.6 if x >= 40 else    # Medium risk - slightly thin lines
+                  0.4                    # Low risk - thin lines
     )
     
-    # Add basemap
-    try:
-        ctx.add_basemap(ax1, crs=edges_gdf.crs, source=ctx.providers.CartoDB.Positron, alpha=0.6)
-    except:
-        print("Note: Could not add basemap - continuing without background")
+    # Plot different risk levels with different line widths for emphasis
+    # Plot low-medium risk areas first (thin lines)
+    low_medium_risk = edges_gdf[edges_gdf['final_risk'] < 60]
+    if len(low_medium_risk) > 0:
+        low_medium_risk.plot(
+            column='final_risk',
+            cmap=risk_cmap,
+            linewidth=low_medium_risk['line_width'],
+            ax=ax,
+            alpha=0.7
+        )
     
-    ax1.set_title('Enhanced Risk-Weighted Street Network', fontsize=14, fontweight='bold')
-    ax1.set_xlabel('Longitude')
-    ax1.set_ylabel('Latitude')
-    ax1.grid(True, alpha=0.3)
-    
-    # 2. Risk Categories Map
-    ax2 = axes[0, 1]
-    
-    # Create risk categories
-    edges_gdf['risk_category'] = pd.cut(
-        edges_gdf['final_risk'],
-        bins=[0, 10, 25, 50, 75, 100],
-        labels=['Very Low (1-10)', 'Low (10-25)', 'Medium (25-50)', 'High (50-75)', 'Very High (75-100)'],
-        include_lowest=True
-    )
-    
-    # Color mapping for categories
-    category_colors = {
-        'Very Low (1-10)': '#2E8B57',    # Dark green
-        'Low (10-25)': '#90EE90',        # Light green  
-        'Medium (25-50)': '#FFFF00',     # Yellow
-        'High (50-75)': '#FFA500',       # Orange
-        'Very High (75-100)': '#8B0000'  # Dark red
-    }
-    
-    for category, color in category_colors.items():
-        subset = edges_gdf[edges_gdf['risk_category'] == category]
-        if len(subset) > 0:
-            subset.plot(color=color, linewidth=0.6, ax=ax2, label=category, alpha=0.8)
-    
-    try:
-        ctx.add_basemap(ax2, crs=edges_gdf.crs, source=ctx.providers.CartoDB.Positron, alpha=0.4)
-    except:
-        pass
-    
-    ax2.set_title('Risk Categories Distribution', fontsize=14, fontweight='bold')
-    ax2.set_xlabel('Longitude')
-    ax2.set_ylabel('Latitude')
-    ax2.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=10)
-    ax2.grid(True, alpha=0.3)
-    
-    # 3. High-Risk Focus Map
-    ax3 = axes[1, 0]
-    
-    # Show all edges in light gray
-    edges_gdf.plot(color='lightgray', linewidth=0.3, ax=ax3, alpha=0.5)
-    
-    # Highlight high-risk edges
-    high_risk = edges_gdf[edges_gdf['final_risk'] >= 50]
+    # Plot high risk areas (medium-thick lines)
+    high_risk = edges_gdf[(edges_gdf['final_risk'] >= 60) & (edges_gdf['final_risk'] < 80)]
     if len(high_risk) > 0:
         high_risk.plot(
             column='final_risk',
-            cmap='Reds',
-            linewidth=1.2,
-            ax=ax3,
-            legend=True,
-            legend_kwds={
-                'label': 'High Risk Score (50-100)',
-                'orientation': 'horizontal',
-                'shrink': 0.8,
-                'pad': 0.05
-            }
+            cmap=risk_cmap,
+            linewidth=high_risk['line_width'],
+            ax=ax,
+            alpha=0.8
         )
     
+    # Plot very high risk areas last (thick lines) to make them most prominent
+    very_high_risk = edges_gdf[edges_gdf['final_risk'] >= 80]
+    if len(very_high_risk) > 0:
+        very_high_risk.plot(
+            column='final_risk',
+            cmap=risk_cmap,
+            linewidth=very_high_risk['line_width'],
+            ax=ax,
+            alpha=0.9
+        )
+    
+    # Add a colorbar legend manually for better control
+    sm = plt.cm.ScalarMappable(cmap=risk_cmap, norm=plt.Normalize(
+        vmin=edges_gdf['final_risk'].min(), 
+        vmax=edges_gdf['final_risk'].max()
+    ))
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, orientation='horizontal', shrink=0.8, pad=0.05)
+    cbar.set_label('Risk Score (1-100)', fontsize=12, fontweight='bold')
+    
+    # Add basemap
     try:
-        ctx.add_basemap(ax3, crs=edges_gdf.crs, source=ctx.providers.CartoDB.Positron, alpha=0.6)
+        ctx.add_basemap(ax, crs=edges_gdf.crs, source=ctx.providers.CartoDB.Positron, alpha=0.6)
     except:
-        pass
+        print("Note: Could not add basemap - continuing without background")
     
-    ax3.set_title(f'High-Risk Areas Focus (≥50 Risk)\n{len(high_risk):,} dangerous edges', 
-                  fontsize=14, fontweight='bold')
-    ax3.set_xlabel('Longitude')
-    ax3.set_ylabel('Latitude')
-    ax3.grid(True, alpha=0.3)
-    
-    # 4. Statistics Panel
-    ax4 = axes[1, 1]
-    ax4.axis('off')
-    
-    # Calculate statistics
-    total_edges = len(edges_gdf)
-    risk_stats = {
-        'Very Low (1-10)': len(edges_gdf[edges_gdf['final_risk'] <= 10]),
-        'Low (10-25)': len(edges_gdf[(edges_gdf['final_risk'] > 10) & (edges_gdf['final_risk'] <= 25)]),
-        'Medium (25-50)': len(edges_gdf[(edges_gdf['final_risk'] > 25) & (edges_gdf['final_risk'] <= 50)]),
-        'High (50-75)': len(edges_gdf[(edges_gdf['final_risk'] > 50) & (edges_gdf['final_risk'] <= 75)]),
-        'Very High (75-100)': len(edges_gdf[edges_gdf['final_risk'] > 75])
-    }
-    
-    # Create statistics table
-    stats_text = [
-        "SAN FRANCISCO CRIME RISK ANALYSIS",
-        "=" * 40,
-        "",
-        "NETWORK STATISTICS:",
-        f"Total Street Edges: {total_edges:,}",
-        f"Mean Risk Score: {edges_gdf['final_risk'].mean():.1f}/100",
-        f"Standard Deviation: {edges_gdf['final_risk'].std():.1f}",
-        f"Range: [{edges_gdf['final_risk'].min():.1f}, {edges_gdf['final_risk'].max():.1f}]",
-        "",
-        "RISK DISTRIBUTION:",
-    ]
-    
-    for category, count in risk_stats.items():
-        percentage = count / total_edges * 100
-        stats_text.append(f"{category}: {count:,} ({percentage:.1f}%)")
-    
-    stats_text.extend([
-        "",
-        "SAFETY INSIGHTS:",
-        f"• {risk_stats['Very Low (1-10)']:,} very safe edges",
-        f"• {risk_stats['High (50-75)'] + risk_stats['Very High (75-100)']:,} high-risk edges to avoid",
-        f"• {risk_stats['Medium (25-50)']:,} moderate-risk edges",
-        "",
-        "ALGORITHM FEATURES:",
-        "✓ Enhanced risk diffusion applied",
-        "✓ Core preservation for dangerous areas",
-        "✓ Regional risk buffering",
-        "✓ Realistic risk distribution (mean=35)",
-        "✓ Ready for crime-aware routing"
-    ])
-    
-    # Display statistics
-    ax4.text(0.05, 0.95, '\n'.join(stats_text), 
-             transform=ax4.transAxes, fontsize=11, verticalalignment='top',
-             fontfamily='monospace',
-             bbox=dict(boxstyle="round,pad=0.5", facecolor="lightblue", alpha=0.8))
-    
-    # Add risk level color legend
-    legend_elements = []
-    for category, color in category_colors.items():
-        legend_elements.append(plt.Line2D([0], [0], color=color, lw=3, label=category))
-    
-    ax4.legend(handles=legend_elements, loc='center right', bbox_to_anchor=(0.95, 0.3),
-               title="Risk Levels", title_fontsize=12, fontsize=10)
+    ax.set_title('Enhanced Risk-Weighted Street Network', fontsize=14, fontweight='bold')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
     
