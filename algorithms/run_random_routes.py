@@ -27,9 +27,28 @@ def _prompt_choice(prompt: str, default: str = "") -> str:
     return s or default
 
 
+def _parse_betas(s: str) -> list[float]:
+    """Parse comma-separated betas, clamp to [0,1], sort and dedupe."""
+    if not s.strip():
+        return [0.0, 0.5, 1.0]
+    out = []
+    for part in s.split(","):
+        try:
+            b = max(0.0, min(1.0, float(part.strip())))
+            out.append(b)
+        except ValueError:
+            continue
+    return sorted(set(out)) if out else [0.0, 0.5, 1.0]
+
+
 def get_plot_options():
-    """Ask user for risk type, line of best fit, cluster highlighting, and n_routes."""
+    """Ask user for betas, risk type, line of best fit, cluster, n_routes, Pareto."""
     print("\n--- Plot options ---")
+    betas_input = _prompt_choice(
+        "Betas to test (comma-separated, 0–1, e.g. 0,0.25,0.5,0.75,1) [default: 0,0.5,1]: ",
+        "0,0.5,1",
+    )
+    betas = _parse_betas(betas_input)
     risk = _prompt_choice("Risk score: (a)verage or (t)otal? [a/t] (default: a): ", "a")
     use_average_risk = risk != "t"
     line_input = _prompt_choice("Show line of best fit? [y/n] (default: n): ", "n")
@@ -41,11 +60,31 @@ def get_plot_options():
         n_routes = max(1, int(n_input))
     except ValueError:
         n_routes = 50
-    return use_average_risk, show_line, show_cluster, n_routes
+    pareto_input = _prompt_choice("Include Pareto-optimal point per route? [y/n] (default: n): ", "n")
+    show_pareto = pareto_input in ("y", "yes")
+    return betas, use_average_risk, show_line, show_cluster, n_routes, show_pareto
+
+
+def _pareto_optimal_points(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Return the subset of (dist, risk) points that are Pareto-optimal (non-dominated)."""
+    if not points:
+        return []
+    pareto = []
+    for (d, r) in points:
+        dominated = False
+        for (d2, r2) in points:
+            if (d2, r2) == (d, r):
+                continue
+            if d2 <= d and r2 <= r and (d2 < d or r2 < r):
+                dominated = True
+                break
+        if not dominated:
+            pareto.append((d, r))
+    return pareto
 
 
 def main():
-    use_average_risk, show_line, show_cluster, n_routes = get_plot_options()
+    betas, use_average_risk, show_line, show_cluster, n_routes, show_pareto = get_plot_options()
     risk_key = "average_risk_score" if use_average_risk else "total_risk_score"
     risk_label = "Average risk score (per edge)" if use_average_risk else "Total risk score"
 
@@ -79,7 +118,6 @@ def main():
         print("Graph has fewer than 2 nodes.", file=sys.stderr)
         sys.exit(1)
 
-    betas = [0.0, 0.5, 1.0]
     results = []  # list of {beta, total_distance_m, average_risk_score, total_risk_score, run_id}
 
     random.seed(42)
@@ -113,8 +151,9 @@ def main():
         sys.exit(1)
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    colors = {0.0: "#2ecc71", 0.5: "#3498db", 1.0: "#e74c3c"}
-    labels = {0.0: "β=0 (safest)", 0.5: "β=0.5 (balanced)", 1.0: "β=1 (shortest)"}
+    cmap = plt.cm.RdYlGn_r  # red = high beta, green = low beta
+    colors = {b: cmap(b) for b in betas}
+    labels = {b: f"β={b}" for b in betas}
 
     # Draw cluster hulls first (behind points), if requested
     if show_cluster:
@@ -145,6 +184,18 @@ def main():
             coefs = np.polyfit(dist, risk, 1)
             x_line = np.linspace(dist.min(), dist.max(), 100)
             ax.plot(x_line, np.polyval(coefs, x_line), c=colors[beta], linestyle="--", linewidth=2)
+
+    # Pareto-optimal point(s) per route
+    if show_pareto:
+        pareto_dists, pareto_risks = [], []
+        for run_id in range(n_routes):
+            subset = [x for x in results if x["run_id"] == run_id]
+            points = [(x["total_distance_m"], x[risk_key]) for x in subset]
+            for d, r in _pareto_optimal_points(points):
+                pareto_dists.append(d)
+                pareto_risks.append(r)
+        if pareto_dists:
+            ax.scatter(pareto_dists, pareto_risks, c="black", marker="*", s=120, label="Pareto optimal", zorder=3, edgecolors="gold", linewidths=0.5)
 
     ax.set_xlabel("Total distance (m)")
     ax.set_ylabel(risk_label)
